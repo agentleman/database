@@ -1,0 +1,180 @@
+14 个折磨人的 JavaScript 面试题
+
+2018-03-25 leftstick 前端教程
+作者：leftstick
+https://segmentfault.com/a/1190000006129337
+前端工程师有时候面试时会遇到一类面试官，他们问的问题对于语言本身非常较真儿，往往不是候选人可能期待的面向实际的问题(有些候选人强调能干活就行，至于知不知道其中缘由是无关痛痒的)。这类题目，虽然没有逻辑，但某种程度说，确实考察了候选人对于 javascript这门语言的理解。
+
+突然想到这个话题是无聊在翻自己的Github，看看以前都写过什么丑货。然后翻到了这篇解释Javascript quiz的文章quiz-legend，反正没事儿，就想搬过来供大家学习、理解、背诵、批判。
+
+问题一
+
+(function(){
+    return typeof arguments;//"object"
+})();
+arguments是一个Array-like对象，对应的就是传入函数的参数列表。你可以在任何函数中直接使用该变量。
+
+typeof操作符只会返回 string类型的结果。参照如下列表可知对应不同数据， typeof返回的值都是什么：
+
+类型	结果
+undefined	'undefined'
+null	'object'
+Boolean	'boolean'
+Number	'number'
+String	'string'
+Symbol (new in ECMAScript 2015)	'symbol'
+Host object (provided by the JS environment)	Implementation-dependent
+Function object (implements [[Call]] in ECMA-262 terms)	'function'
+Any other object	'object'
+由此我们推断出， typeof arguments是 object
+问题二
+
+var f = function g(){ return 23; };
+typeof g();//报错
+这是一个名字是 g的function expression，然后又被赋值给了变量 f。
+
+这里的函数名 g和被其赋值的变量 f有如下差异：
+
+函数名 g不能变动，而变量 f可以被重新赋值
+函数名 g只能在函数体内部被使用，试图在函数外部使用 g会报错的
+问题三
+
+(function(x){
+    delete x;
+    return x;//1
+})(1);
+delete操作符可以从对象中删除属性，正确用法如下：
+
+delete object.property
+delete object['property']
+delete操作符只能作用在对象的属性上，对变量和函数名无效。也就是说 delete x是没有意义的。
+
+你最好也知道， delete是不会直接释放内存的，她只是间接的中断对象引用
+问题四
+
+var y = 1, x = y = typeof x; x;//"undefined"
+我们试图分解上述代码成下面两步：
+
+var y = 1; //step 1
+var x = y = typeof x; //step 2
+第一步应该没有异议，我们直接看第二步
+
+赋值表达式从右向左执行
+y被重新赋值为 typeof x的结果，也就是 undefined
+x被赋值为右边表达式( y = typeof x)的结果，也就是 undefined
+问题五
+
+(function f(f){
+    return typeof f();//"number"
+})(function(){ return 1; });
+直接上注释解释：
+
+(function f(f){
+    //这里的f是传入的参数function(){ return 1; }
+    //执行的结果自然是1
+    return typeof f(); //所以根据问题一的表格我们知道，typeof 1结果是"number"
+})(function(){ return 1; });
+问题六
+
+var foo = {
+    bar: function() { return this.baz; },
+    baz: 1
+};
+(function(){
+    return typeof arguments[0]();//"undefined"
+})(foo.bar);
+这里你可能会误以为最终结果是 number。向函数中传递参数可以看作是一种赋值，所以 arguments[0]得到是是真正的 bar函数的值，而不是 foo.bar这个引用，那么自然 this也就不会指向 foo，而是 window了。
+
+问题七
+
+var foo = {
+    bar: function(){ return this.baz; },
+    baz: 1
+}
+typeof (f = foo.bar)();//"undefined"
+这和上一题是一样的问题， (f = foo.bar)返回的就是 bar的值，而不是其引用，那么 this也就指的不是 foo了。
+
+问题八
+
+var f = (function f(){ return '1'; }, function g(){ return 2; })();
+typeof f;//"number"
+逗号操作符 对它的每个操作对象求值（从左至右），然后返回最后一个操作对象的值
+
+所以 (function f(){ return '1'; }, function g(){ return 2; })的返回值就是函数 g，然后执行她，那么结果是 2；最后再 typeof 2，根据问题一的表格，结果自然是 number
+
+问题九
+
+var x = 1;
+if (function f(){}) {
+    x += typeof f;
+}
+x;//"1undefined"
+这个问题的关键点，我们在问题二中谈到过， function expression中的函数名 f是不能在函数体外部访问的
+
+问题十
+
+var x = [typeof x, typeof y][1];
+typeof typeof x;//"string"
+因为没有声明过变量 y，所以 typeof y返回 "undefined"
+将 typeof y的结果赋值给 x，也就是说 x现在是 "undefined"
+然后 typeof x当然是 "string"
+最后 typeof "string"的结果自然还是 "string"
+问题十一
+
+(function(foo){
+    return typeof foo.bar;//"undefined"
+})({ foo: { bar: 1 } });
+这是个纯粹的视觉诡计，上注释
+
+(function(foo){
+    //这里的foo，是{ foo: { bar: 1 } }，并没有bar属性哦。
+    //bar属性是在foo.foo下面
+    //所以这里结果是"undefined"
+    return typeof foo.bar;
+})({ foo: { bar: 1 } });
+问题十二
+
+(function f(){
+    function f(){ return 1; }
+    return f();//2
+    function f(){ return 2; }
+})();
+通过 function declaration声明的函数甚至可以在声明之前使用，这种特性我们称之为hoisting。于是上述代码其实是这样被运行环境解释的：
+
+(function f(){
+    function f(){ return 1; }
+    function f(){ return 2; }
+    return f();
+})();
+问题十三
+
+function f(){ return f; }
+new f() instanceof f;//false
+当代码 new f()执行时，下面事情将会发生：
+
+一个新对象被创建。它继承自 f.prototype
+构造函数 f被执行。执行的时候，相应的传参会被传入，同时上下文( this)会被指定为这个新实例。 new f等同于 new f()，只能用在不传递任何参数的情况。
+如果构造函数返回了一个“对象”，那么这个对象会取代整个 new出来的结果。如果构造函数没有返回对象，那么 new出来的结果为步骤1创建的对象，
+ps：一般情况下构造函数不返回任何值，不过用户如果想覆盖这个返回值，可以自己选择返回一个普通对象来覆盖。当然，返回数组也会覆盖，因为数组也是对象。
+于是，我们这里的 new f()返回的仍然是函数 f本身，而并非他的实例
+
+问题十四
+
+with (function(x, undefined){}) length;//2
+with语句将某个对象添加的作用域链的顶部，如果在 statement中有某個未使用命名空间的变量，跟作用域链中的某個属性同名，則這個变量将指向這個属性值。如果沒有同名的属性，则将拋出 ReferenceError异常。
+
+OK，现在我们来看，由于 function(x, undefined){}是一个匿名函数表达式，是函数，就会有 length属性，指的就是函数的参数个数。所以最终结果就是 2了
+
+写在最后
+
+有人觉得这些题坑爹，也有人觉得开阔了眼界，见仁见智吧。但有一件事是真的，无论你是否坚定的实践派，缺了理论基础，也铁定走不远 － 你永远不会见到哪个熟练的技术工人突然成了火箭专家。
+
+看文档、读标准、结合实践，才是同志们的决胜之道。
+推荐阅读：
+1.学前端不看书怎么行？前端100本高清pdf电子书打包下载
+
+觉得本文对你有帮助？请分享给更多人
+关注==>>「前端教程」，一起提升前端技能！
+
+阅读原文阅读 470赞 投诉
+留言
